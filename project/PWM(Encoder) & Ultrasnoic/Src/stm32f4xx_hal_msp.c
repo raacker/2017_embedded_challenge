@@ -60,6 +60,82 @@
 
 
 /**
+  * @brief ADC MSP Initialization 
+  *        This function configures the hardware resources used in this example: 
+  *           - Peripheral's clock enable
+  *           - Peripheral's GPIO Configuration  
+  * @param hadc: ADC handle pointer
+  * @retval None
+  */
+void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
+{
+   GPIO_InitTypeDef          GPIO_InitStruct;
+	// ADC GPIO ¼³Á¤
+	if(hadc->Instance == ADC3)
+	{
+		/*##-1- Enable peripherals and GPIO Clocks #################################*/
+		/* ADC1 Periph clock enable */
+
+		__ADC3_CLK_ENABLE();
+		/* Enable GPIO clock ****************************************/
+		__GPIOC_CLK_ENABLE();
+
+		/*##-2- Configure peripheral GPIO ##########################################*/ 
+		/* ADC1 Channel11 GPIO pin configuration */
+		GPIO_InitStruct.Pin = GPIO_PIN_1;
+		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	}
+	
+	if(hadc->Instance == ADC2)
+	{
+		/* ADC1 Periph clock enable */
+		__ADC2_CLK_ENABLE();
+		/* Enable GPIO clock ****************************************/
+		__GPIOC_CLK_ENABLE();
+
+		GPIO_InitStruct.Pin = GPIO_PIN_4 ;
+		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	}
+	
+	if(hadc->Instance == ADC1)
+	{
+		/* ADC1 Periph clock enable */
+		__ADC1_CLK_ENABLE();
+		/* Enable GPIO clock ****************************************/
+		__GPIOC_CLK_ENABLE();
+
+		GPIO_InitStruct.Pin = GPIO_PIN_5;
+		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	}
+}
+  
+/**
+  * @brief ADC MSP De-Initialization 
+  *        This function frees the hardware resources used in this example:
+  *          - Disable the Peripheral's clock
+  *          - Revert GPIO to their default state
+  * @param hadc: ADC handle pointer
+  * @retval None
+  */
+void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
+{
+  
+  /*##-1- Reset peripherals ##################################################*/
+  ADCx_FORCE_RESET();
+  ADCx_RELEASE_RESET();
+
+  /*##-2- Disable peripherals and GPIO Clocks ################################*/
+  /* De-initialize the ADC3 Channel8 GPIO pin */
+  HAL_GPIO_DeInit(ADCx_CHANNEL_GPIO_PORT, ADCx_CHANNEL_PIN);
+}
+
+/**
   * @brief TIM MSP Initialization 
   *        This function configures the hardware resources used in this example: 
   *           - Peripheral's clock enable

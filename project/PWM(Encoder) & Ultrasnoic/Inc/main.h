@@ -49,6 +49,21 @@
    resources */
 #define READY 3
 
+/* Definition for ADCx clock resources */
+#define ADCx                            ADC3
+#define ADCx_CLK_ENABLE()               __ADC3_CLK_ENABLE();
+#define ADCx_CHANNEL_GPIO_CLK_ENABLE()  __GPIOF_CLK_ENABLE()
+     
+#define ADCx_FORCE_RESET()              __ADC_FORCE_RESET()
+#define ADCx_RELEASE_RESET()            __ADC_RELEASE_RESET()
+
+/* Definition for ADCx Channel Pin */
+#define ADCx_CHANNEL_PIN                GPIO_PIN_10
+#define ADCx_CHANNEL_GPIO_PORT          GPIOF 
+
+/* Definition for ADCx's Channel */
+#define ADCx_CHANNEL                    ADC_CHANNEL_8
+
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
