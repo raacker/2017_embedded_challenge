@@ -60,6 +60,12 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Timer handler declaration */
+/* TimHandle1 : Left Motor
+ * TimHandle2 : Right Motor
+ * TimHandle3 : Ultrasonic Left, Forward, Right
+ * TimHandle4 : Ultrasonic Trigger
+ *
+ */
 TIM_HandleTypeDef    TimHandle1, TimHandle2, TimHandle3, TimHandle4;
 TIM_IC_InitTypeDef     sICConfig;
 	
@@ -277,22 +283,22 @@ int main(void)
 	/*##-3- Start PWM signals generation #######################################*/ 
 	/* Start channel 3 */	
 	HAL_TIM_PWM_Start(&TimHandle4, TIM_CHANNEL_1);
-	
-	xTaskCreate(Detect_obstacle,
-											(const signed char *)"Detect_obstacle",
-												400,
-												NULL,
-												3,
-												NULL
-												);
+
+    xTaskCreate(Detect_obstacle,
+                      (const signed char *)"Detect_obstacle",
+                      400,
+                      NULL,
+                      3,
+                      NULL
+                      );
 											
-	xTaskCreate(Motor_control,
-											(const signed char *)"Motor_control",
-												400,
-												NULL,
-												3,
-												NULL
-												);
+    xTaskCreate(Motor_control,
+                      (const signed char *)"Motor_control",
+                      400,
+                      NULL,
+                      3,
+                      NULL
+                      );
 											
 	printf("\r\n ------------------- Encoder Motor Example -------------------");
 	printf("\r\n'w' = Forward, 's' = Stop, 'x' = Backward, 'a' = Left, 'd' = Right ");
