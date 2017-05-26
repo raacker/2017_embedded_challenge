@@ -51,4 +51,4 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-./project/PWM(Encoder) & Ultrasnoic/MDK-ARM/output/*
+/project/PWM(Encoder) & Ultrasnoic/MDK-ARM/output/

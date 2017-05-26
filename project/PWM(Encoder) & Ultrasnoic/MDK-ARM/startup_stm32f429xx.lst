@@ -905,18 +905,17 @@ ARM Macro Assembler    Page 14
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp --apcs=int
 erwork --depend=.\output\startup_stm32f429xx.d -o.\output\startup_stm32f429xx.o
- -I"C:\Users\ganda\Desktop\임베디드소프트웨어 - 김형신 교수님\실습\9주차\Lab9_M
-otor\project\PWM(Encoder) & Ultrasnoic\MDK-ARM\RTE" -IC:\Keil_v5\ARM\PACK\Keil\
-STM32F4xx_DFP\2.4.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include -IC:\Keil_v5\ARM\
+ -I"C:\Users\ganda\2017_embedded_challenge\project\PWM(Encoder) & Ultrasnoic\MD
+K-ARM\RTE" -IC:\Keil_v5\ARM\PACK\Keil\STM32F4xx_DFP\2.4.0\Drivers\CMSIS\Device\
+ST\STM32F4xx\Include -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__MICROLIB SET
 
 
 
 ARM Macro Assembler    Page 15 
 
 
-CMSIS\Include --predefine="__MICROLIB SETA 1" --predefine="__UVISION_VERSION SE
-TA 518" --predefine="STM32F429xx SETA 1" --list=startup_stm32f429xx.lst startup
-_stm32f429xx.s
+A 1" --predefine="__UVISION_VERSION SETA 518" --predefine="STM32F429xx SETA 1" 
+--list=startup_stm32f429xx.lst startup_stm32f429xx.s
 
 
 
