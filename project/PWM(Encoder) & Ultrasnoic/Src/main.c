@@ -116,8 +116,7 @@ void Motor_Right(void);
 void Motor_Stop(void);
 void Motor_Speed_Up_Config(void);
 void Motor_Speed_Down_Config(void);
-void Detect_obstacle(void*);
-void Motor_control(void*);
+void IRSensor(void *);
 static void EXTILine_Config(void);
 static void Error_Handler(void);
 /* Private functions ---------------------------------------------------------*/
@@ -387,15 +386,25 @@ int main(void)
                       3,
                       NULL
                       );
-	*/										
+	*/									
+    xTaskCreate(IRSensor,
+                        (const signed char *)"IRSensor",
+                        400,
+                        NULL,
+                        3,
+                        NULL
+                        );
+                       
 	printf("\r\n ------------------- System Enabled -------------------");
 
 	//Motor_Forward();
 										
+	vTaskStartScheduler();
+}
 
-    while(1)
-	{
-		HAL_ADC_Start(&AdcHandle3);
+void IRSensor(void *params) {
+    while(1) {
+        HAL_ADC_Start(&AdcHandle3);
 		//현재 ADC 값을 읽어온다.
 		uhADCxForward = HAL_ADC_GetValue(&AdcHandle3);
 		HAL_ADC_PollForConversion(&AdcHandle3, 0xFF);
@@ -408,19 +417,17 @@ int main(void)
 		HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);	
 		if(uhADCxLeft >2000) uhADCxLeft= 2000;
 		else if(uhADCxLeft<100) uhADCxLeft = 100;
-		printf("\r\nIR sensor Left = %d", uhADCxLeft);
+		//printf("\r\nIR sensor Left = %d", uhADCxLeft);
 		
 		HAL_ADC_Start(&AdcHandle2);
 		uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
 		HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
 		if(uhADCxRight >2000) uhADCxRight= 2000;
 		else if(uhADCxRight<100) uhADCxRight = 100;
-		printf("\r\nIR sensor Right = %d", uhADCxRight);
-
-		//HAL_Delay(500);
-	}
-    
-	//vTaskStartScheduler();
+		//printf("\r\nIR sensor Right = %d", uhADCxRight);
+        
+        vTaskDelay(1000);
+    }
 }
 
 void Motor_Forward(void)
@@ -495,18 +502,20 @@ void Motor_Speed_Down_Config(void)
   */
 static void SystemClock_Config(void)
 {
+    /*
+    //140Mhz
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
-	/* Enable Power Control clock */
+	// Enable Power Control clock
 	__PWR_CLK_ENABLE();
 
-	/* The voltage scaling allows optimizing the power consumption when the device is 
-	 clocked below the maximum system frequency, to update the voltage scaling value 
-	 regarding system frequency refer to product datasheet.  */
+	// The voltage scaling allows optimizing the power consumption when the device is 
+	// clocked below the maximum system frequency, to update the voltage scaling value 
+	// regarding system frequency refer to product datasheet.  
 	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
-	/* Enable HSE Oscillator and activate PLL with HSE as source */
+	// Enable HSE Oscillator and activate PLL with HSE as source 
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -517,15 +526,18 @@ static void SystemClock_Config(void)
 	RCC_OscInitStruct.PLL.PLLQ = 6;
 	HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-	/* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 
-	 clocks dividers */
+	// Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 
+	// clocks dividers
 	RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;  
 	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
-    /*
+   
+   */
+   //180MHz
+   
 	RCC_ClkInitTypeDef RCC_ClkInitStruct;
 	RCC_OscInitTypeDef RCC_OscInitStruct;
 
@@ -559,7 +571,7 @@ static void SystemClock_Config(void)
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;  
 	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
-*/
+
 }
 
 #ifdef  USE_FULL_ASSERT
@@ -655,7 +667,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				{
 						uwDiffCapture1 = 0;
 				}
-			//	printf("\r\n Value Right : %d cm", uwDiffCapture1/58);
+				printf("\r\n Value Right : %d cm", uwDiffCapture1/58);
 					
 				uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture1;
 				TIM3->CCER &= ~TIM_CCER_CC2P;
@@ -688,7 +700,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				{
 					uwDiffCapture2 = 0;
 				}
-				//printf("\r\n Value Forward : %d cm", uwDiffCapture2/58);
+				printf("\r\n Value Forward : %d cm", uwDiffCapture2/58);
 					
 				uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture2;
 				TIM3->CCER &= ~TIM_CCER_CC3P;
@@ -721,7 +733,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				{
 					uwDiffCapture3 = 0;
 				}
-			//	printf("\r\n Value Left: %d cm", uwDiffCapture3/58);
+				printf("\r\n Value Left: %d cm", uwDiffCapture3/58);
 					
 				uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture3;
 				TIM3->CCER &= ~TIM_CCER_CC4P;
