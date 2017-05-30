@@ -80,15 +80,6 @@ uint16_t motorInterrupt2 = 0;
 uint8_t encoder_right = READY ;
 uint8_t encoder_left  = READY ;
 
-/* ADC handler declaration */
-ADC_HandleTypeDef   AdcHandle1, AdcHandle2, AdcHandle3;
-ADC_ChannelConfTypeDef adcConfig1, adcConfig2, adcConfig3;
-ADC_ChannelConfTypeDef sConfig;
-
-/* Variable used to get converted value */
-__IO uint32_t uhADCxRight;
-__IO uint32_t uhADCxForward;
-__IO uint32_t uhADCxLeft;	
 
  /* Captured Values */
 uint32_t               uwIC2Value1 = 0;
@@ -104,8 +95,16 @@ uint32_t               uwIC2Value6= 0;
 uint32_t               uwDiffCapture3 = 0;
 
 uint32_t               uwFrequency = 0;
-uint32_t 							 forwardObstacleDetected = 0;
-uint32_t  						 machineStopped = 0;
+
+/* ADC handler declaration */
+ADC_HandleTypeDef   AdcHandle1, AdcHandle2, AdcHandle3;
+ADC_ChannelConfTypeDef adcConfig1, adcConfig2, adcConfig3;
+ADC_ChannelConfTypeDef sConfig;
+
+/* Variable used to get converted value */
+__IO uint32_t uhADCxRight;
+__IO uint32_t uhADCxForward;
+__IO uint32_t uhADCxLeft;	
 
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
@@ -116,12 +115,22 @@ void Motor_Right(void);
 void Motor_Stop(void);
 void Motor_Speed_Up_Config(void);
 void Motor_Speed_Down_Config(void);
-void IRSensor(void *);
 static void EXTILine_Config(void);
 static void Error_Handler(void);
-/* Private functions ---------------------------------------------------------*/
 
+/* Private functions ---------------------------------------------------------*/
 extern UART_HandleTypeDef UartHandle1, UartHandle2;
+
+
+/* ------------------------------ Team Defined Variables ------------------------------  */
+void IRSensor(void *);
+
+uint32_t 			  forwardObstacleDetected = 0;
+uint32_t  			  machineStopped = 0;
+
+
+
+
 
 #ifdef __GNUC__
   /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -245,6 +254,7 @@ int main(void)
     
     
     /* Compute the prescaler value to have TIM4,TIM8 counter clock equal to 2 MHz */
+    //TODO : adjust this value
 	uwPrescalerValue = (SystemCoreClock/2)/1000000;
 	
 	// PB2 모터 전원 인가를 위한 GPIO 초기화
@@ -302,6 +312,7 @@ int main(void)
 
 	EXTILine_Config(); // Encoder Interrupt Setting
 	
+    //TODO : adjust this value
 	uwPrescalerValue = ((SystemCoreClock / 2) / 1000000) - 1;	
 		/*##-1- Configure the TIM peripheral #######################################*/ 
 	/* Set TIMx instance */
@@ -336,6 +347,7 @@ int main(void)
 	HAL_TIM_IC_Start_IT(&TimHandle3, TIM_CHANNEL_3) ;
 	HAL_TIM_IC_Start_IT(&TimHandle3, TIM_CHANNEL_4) ;
 
+    //TODO : adjust this value
 	uwPrescalerValue = (SystemCoreClock / 2 / 131099) - 1;
 		
 	/*##-1- Configure the TIM peripheral #######################################*/ 
@@ -346,6 +358,7 @@ int main(void)
 	   + Counter direction = Up
 	*/
 	/* Compute the prescaler value to have TIM10 counter clock equal to 131.099 kHz */
+    //TODO : adjust this value
 	uwPrescalerValue = (SystemCoreClock / 2 / 131099) - 1;
 		
 	TimHandle4.Instance = TIM10;
@@ -430,6 +443,13 @@ void IRSensor(void *params) {
     }
 }
 
+
+
+
+
+
+
+/* ------------------------ Original Sources. Do not modify ------------------------ */
 void Motor_Forward(void)
 {
 	HAL_TIM_PWM_Start(&TimHandle1, TIM_CHANNEL_1);
