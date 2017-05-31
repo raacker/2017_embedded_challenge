@@ -134,7 +134,7 @@ void US_Drive_Until_Desired_Direction(void *);
 void motor_left_turn(void);
 void motor_right_turn(void);
 
-#define IR_OBSTACLE_DETECTED_DISTANCE 300
+#define IR_OBSTACLE_DETECTED_DISTANCE 1500
 const portTickType irDelay = 300 / portTICK_RATE_MS;
 
 uint32_t        direction;
@@ -428,7 +428,7 @@ void IR_Sensor(void *params) {
             HAL_ADC_Start(&AdcHandle1);
             uhADCxLeft = HAL_ADC_GetValue(&AdcHandle1);
             HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);
-            if(uhADCxLeft < IR_OBSTACLE_DETECTED_DISTANCE)
+            if(uhADCxLeft > IR_OBSTACLE_DETECTED_DISTANCE)
                 vTaskResume(ir_left_diagonal_handle);
             xSemaphoreGive(ir_left_diagonal_semaphore);
         }
@@ -441,7 +441,7 @@ void IR_Sensor(void *params) {
             HAL_ADC_Start(&AdcHandle2);
             uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
             HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
-            if(uhADCxRight < IR_OBSTACLE_DETECTED_DISTANCE)
+            if(uhADCxRight > IR_OBSTACLE_DETECTED_DISTANCE)
                 vTaskResume(ir_right_diagonal_handle);
             xSemaphoreGive(ir_right_diagonal_semaphore);
         }
