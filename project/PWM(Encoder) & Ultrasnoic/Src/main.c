@@ -134,11 +134,14 @@ void US_Drive_Until_Desired_Direction(void *);
 void motor_left_turn(void);
 void motor_right_turn(void);
 
+#define IR_OBSTACLE_DETECTED_DISTANCE 300
+const portTickType irDelay = 300 / portTICK_RATE_MS;
 
 uint32_t        direction;
-
-
-
+xTaskHandle ir_left_diagonal_handle;
+xTaskHandle ir_right_diagonal_handle;
+xSemaphoreHandle ir_left_diagonal_semaphore;
+xSemaphoreHandle ir_right_diagonal_semaphore;
 
 
 
@@ -395,24 +398,23 @@ int main(void)
 	HAL_TIM_PWM_Start(&TimHandle4, TIM_CHANNEL_1);
 
 
-    xTaskCreate(IR_Sensor,
-                        (const signed char *)"IR_Sensor",
-                        400,
-                        NULL,
-                        3,
-                        NULL
-                        );
+    ir_left_diagonal_semaphore = xSemaphoreCreateMutex();
+    ir_right_diagonal_semaphore = xSemaphoreCreateMutex();
+    xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, NULL);
+    xTaskCreate(IR_Left_Diagonal_Detected, (const signed char *)"IR_Left_Diagonal_Detected", 400, NULL, 4, &ir_left_diagonal_handle);
+    xTaskCreate(IR_Right_Diagonal_Detected, (const signed char *)"IR_Right_Diagonal_Detected", 400, NULL, 4, &ir_right_diagonal_handle);
                        
                         
 	printf("\r\n ------------------- System Enabled -------------------");
 
-	//Motor_Forward();
+	Motor_Forward();
 										
 	vTaskStartScheduler();
 }
 
 void IR_Sensor(void *params) {
     while(1) {
+        /*
         HAL_ADC_Start(&AdcHandle3);
 		//현재 ADC 값을 읽어온다.
 		uhADCxForward = HAL_ADC_GetValue(&AdcHandle3);
@@ -420,31 +422,59 @@ void IR_Sensor(void *params) {
 		if(uhADCxForward >2000) uhADCxForward= 2000;
 		else if(uhADCxForward<100)	uhADCxForward = 100;
 		//printf("\r\nIR sensor Forward = %d", uhADCxForward);
-	
-		HAL_ADC_Start(&AdcHandle1);
-		uhADCxLeft = HAL_ADC_GetValue(&AdcHandle1);
-		HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);	
-		if(uhADCxLeft >2000) uhADCxLeft= 2000;
-		else if(uhADCxLeft<100) uhADCxLeft = 100;
-		printf("\r\nIR sensor Left = %d", uhADCxLeft);
-		
-		HAL_ADC_Start(&AdcHandle2);
-		uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
-		HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
-		if(uhADCxRight >2000) uhADCxRight= 2000;
-		else if(uhADCxRight<100) uhADCxRight = 100;
-		printf("\r\nIR sensor Right = %d", uhADCxRight);
+        */
         
-        vTaskDelay(500);
+        if(xSemaphoreTake(ir_left_diagonal_semaphore, 0) == pdTRUE) {
+            HAL_ADC_Start(&AdcHandle1);
+            uhADCxLeft = HAL_ADC_GetValue(&AdcHandle1);
+            HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);
+            if(uhADCxLeft < IR_OBSTACLE_DETECTED_DISTANCE)
+                vTaskResume(ir_left_diagonal_handle);
+            xSemaphoreGive(ir_left_diagonal_semaphore);
+        }
+                
+		//if(uhADCxLeft >2000) uhADCxLeft= 2000;
+		//else if(uhADCxLeft<100) uhADCxLeft = 100;
+		//printf("\r\nIR sensor Left = %d", uhADCxLeft);
+		
+        if(xSemaphoreTake(ir_right_diagonal_semaphore, 0) == pdTRUE) {
+            HAL_ADC_Start(&AdcHandle2);
+            uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
+            HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
+            if(uhADCxRight < IR_OBSTACLE_DETECTED_DISTANCE)
+                vTaskResume(ir_right_diagonal_handle);
+            xSemaphoreGive(ir_right_diagonal_semaphore);
+        }
+        
+		//if(uhADCxRight >2000) uhADCxRight= 2000;
+		//else if(uhADCxRight<100) uhADCxRight = 100;
+		//printf("\r\nIR sensor Right = %d", uhADCxRight);
+
     }
 }
 
 void IR_Left_Diagonal_Detected(void *params) {
     // 적외선 센서 왼쪽 값에서 한계값 도달
+    while(1) {
+        vTaskSuspend(ir_left_diagonal_handle);
+        Motor_Stop();
+        Motor_Right();
+        vTaskDelay(irDelay);
+        Motor_Stop();
+        Motor_Forward();       
+    }
 }
 
 void IR_Right_Diagonal_Detected(void *params) {
     // 적외선 센서 오른쪽 값에서 한계값 도달
+    while(1) {
+        vTaskSuspend(ir_right_diagonal_handle);
+        Motor_Stop();
+        Motor_Left();
+        vTaskDelay(irDelay);
+        Motor_Stop();
+        Motor_Forward();       
+    }
 }
 
 void US_Sensor(void *params) {
