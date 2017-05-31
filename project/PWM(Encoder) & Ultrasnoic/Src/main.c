@@ -82,17 +82,20 @@ uint8_t encoder_left  = READY ;
 
 
  /* Captured Values */
+ // Right US
 uint32_t               uwIC2Value1 = 0;
 uint32_t               uwIC2Value2 = 0;
-uint32_t               uwDiffCapture1 = 0;
-	
+uint32_t               uwDiffCapture1 = 862;
+
+// Front US
 uint32_t               uwIC2Value3 = 0;
 uint32_t               uwIC2Value4 = 0;
-uint32_t               uwDiffCapture2 = 0;
+uint32_t               uwDiffCapture2 = 862;
 
+// Left US
 uint32_t               uwIC2Value5 = 0;
 uint32_t               uwIC2Value6= 0;
-uint32_t               uwDiffCapture3 = 0;
+uint32_t               uwDiffCapture3 = 862;
 
 uint32_t               uwFrequency = 0;
 
@@ -137,14 +140,23 @@ void motor_right_turn(void);
 #define IR_OBSTACLE_DETECTED_DISTANCE 1500
 const portTickType irDelay = 300 / portTICK_RATE_MS;
 
-uint32_t        direction;
-xTaskHandle ir_left_diagonal_handle;
-xTaskHandle ir_right_diagonal_handle;
-xSemaphoreHandle ir_left_diagonal_semaphore;
-xSemaphoreHandle ir_right_diagonal_semaphore;
+//TODO : variables to register variable for more faster execution
+volatile int                         direction = 90;
+xTaskHandle                     ir_left_diagonal_handle;
+xTaskHandle                     ir_right_diagonal_handle;
+xSemaphoreHandle            ir_left_diagonal_semaphore;
+xSemaphoreHandle            ir_right_diagonal_semaphore;
 
-
-
+#define US_FRONT_OBSTACLE_DETECTING_LIMIT      10   
+#define US_LEFT_RIGHT_MOVABLE_LIMIT                   500
+uint32_t                            us_front_distance = 862;
+uint32_t                            us_left_distance = 862;
+uint32_t                            us_right_distance = 862; 
+xTaskHandle                     us_front_handle;
+xTaskHandle                     us_left_right_handle;
+xSemaphoreHandle           us_front_semaphore;
+xSemaphoreHandle           us_left_right_semaphore;
+    
 #ifdef __GNUC__
   /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
      set to 'Yes') calls __io_putchar() */
@@ -169,9 +181,8 @@ PUTCHAR_PROTOTYPE
   */
 int main(void)
 {
-	uint8_t ch;
-	uint16_t Encoder1 = 0;
-	uint16_t Encoder2 = 0;
+	//uint16_t Encoder1 = 0;
+	//uint16_t Encoder2 = 0;
 	GPIO_InitTypeDef  GPIO_InitStruct;
 	
 	/* STM32F4xx HAL library initialization:
@@ -400,14 +411,19 @@ int main(void)
 
     ir_left_diagonal_semaphore = xSemaphoreCreateMutex();
     ir_right_diagonal_semaphore = xSemaphoreCreateMutex();
-    xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, NULL);
-    xTaskCreate(IR_Left_Diagonal_Detected, (const signed char *)"IR_Left_Diagonal_Detected", 400, NULL, 4, &ir_left_diagonal_handle);
-    xTaskCreate(IR_Right_Diagonal_Detected, (const signed char *)"IR_Right_Diagonal_Detected", 400, NULL, 4, &ir_right_diagonal_handle);
+    us_front_semaphore = xSemaphoreCreateMutex();
+    us_left_right_semaphore = xSemaphoreCreateMutex();
+    //xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, NULL);
+    //xTaskCreate(IR_Left_Diagonal_Detected, (const signed char *)"IR_Left_Diagonal_Detected", 400, NULL, 4, &ir_left_diagonal_handle);
+    //xTaskCreate(IR_Right_Diagonal_Detected, (const signed char *)"IR_Right_Diagonal_Detected", 400, NULL, 4, &ir_right_diagonal_handle);
+    xTaskCreate(US_Sensor, (const signed char *)"US_Sensor", 400, NULL, 4, NULL);
+    xTaskCreate(US_Forward_Detected, (const signed char *)"US_Forward_Detected", 400, NULL, 4, &us_front_handle);
+    xTaskCreate(US_Drive_Until_Desired_Direction, (const signed char *)"US_Drive_Until_Desired_Direction", 400, NULL, 4, &us_left_right_handle);
                        
                         
 	printf("\r\n ------------------- System Enabled -------------------");
 
-	Motor_Forward();
+	//Motor_Forward();
 										
 	vTaskStartScheduler();
 }
@@ -449,13 +465,14 @@ void IR_Sensor(void *params) {
 		//if(uhADCxRight >2000) uhADCxRight= 2000;
 		//else if(uhADCxRight<100) uhADCxRight = 100;
 		//printf("\r\nIR sensor Right = %d", uhADCxRight);
-
+        vTaskDelay(200);
     }
 }
 
 void IR_Left_Diagonal_Detected(void *params) {
     // 적외선 센서 왼쪽 값에서 한계값 도달
     while(1) {
+        // TODO : update direction value
         vTaskSuspend(ir_left_diagonal_handle);
         Motor_Stop();
         Motor_Right();
@@ -468,6 +485,7 @@ void IR_Left_Diagonal_Detected(void *params) {
 void IR_Right_Diagonal_Detected(void *params) {
     // 적외선 센서 오른쪽 값에서 한계값 도달
     while(1) {
+        // TODO : update direction value
         vTaskSuspend(ir_right_diagonal_handle);
         Motor_Stop();
         Motor_Left();
@@ -479,32 +497,80 @@ void IR_Right_Diagonal_Detected(void *params) {
 
 void US_Sensor(void *params) {
     //초음파 센서 값 업데이트
+    while(1) { 
+        us_right_distance = uwDiffCapture1/58;
+        us_front_distance = uwDiffCapture2/58;
+        us_left_distance = uwDiffCapture3/58;
+        printf("\r\nFront = %d", us_front_distance);
+        printf("\r\nLeft = %d", us_left_distance);
+        printf("\r\nRight = %d", us_right_distance);
+        vTaskDelay(500);
+    }
 }
 
 void US_Forward_Detected(void *params) {
     //전방에 장애물이 한계값에서 발견
+    while(1) { 
+        if (us_front_distance < US_FRONT_OBSTACLE_DETECTING_LIMIT) {
+            printf("\r\nObstacle Detected on front");
+            vTaskSuspend(us_front_handle);
+            if(us_left_distance < us_right_distance) {
+                motor_right_turn();
+            } else {
+                motor_left_turn();
+            }
+            vTaskResume(us_left_right_handle);
+        } else {
+            //Motor_Forward();
+        }
+        vTaskDelay(100);
+    }
 }
 
 void US_Drive_Until_Desired_Direction(void *params) {
     // 좌우에 원하는 방향으로 갈 수 있을때까지 진행
+    while(1) { 
+        // error rate : -5 ~ +5
+        if (-5 <= direction && direction <= 5) {
+            vTaskSuspend(us_left_right_handle);
+            vTaskResume(us_front_handle);
+        } else {
+            if (us_left_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
+                printf("\r\n Left movable");
+                Motor_Stop();
+                motor_left_turn();    
+                vTaskSuspend(us_left_right_handle);
+            } else if (us_right_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
+                printf("\r\n Right movable");
+                Motor_Stop();
+                motor_right_turn();
+                vTaskSuspend(us_left_right_handle);
+            } else {
+                // Just keep going
+            }
+        }
+        vTaskDelay(100);
+    }
 }
 
 void motor_left_turn(void) {
     // 왼쪽으로 90도 회전
+    direction -= 90;
     Motor_Left();
     osDelay(1000);
     Motor_Stop();
     Motor_Forward();
-    // US_Drive_Until_Desired_Direction call
+    vTaskResume(us_left_right_handle);
 }
 
 void motor_right_turn(void) {
     // 오른쪽으로 90도 회전
+    direction += 90;
     Motor_Right();
     osDelay(1000);
     Motor_Stop();
     Motor_Forward();
-    // US_Drive_Until_Desired_Direction call
+    vTaskResume(us_left_right_handle);
 }
 
 
@@ -747,7 +813,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				{
 						uwDiffCapture1 = 0;
 				}
-				printf("\r\n Value Right : %d cm", uwDiffCapture1/58);
+				//printf("\r\n Value Right : %d cm", uwDiffCapture1/58);
 					
 				uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture1;
 				TIM3->CCER &= ~TIM_CCER_CC2P;
@@ -780,7 +846,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				{
 					uwDiffCapture2 = 0;
 				}
-				printf("\r\n Value Forward : %d cm", uwDiffCapture2/58);
+				//printf("\r\n Value Forward : %d cm", uwDiffCapture2/58);
 					
 				uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture2;
 				TIM3->CCER &= ~TIM_CCER_CC3P;
@@ -813,7 +879,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				{
 					uwDiffCapture3 = 0;
 				}
-				printf("\r\n Value Left: %d cm", uwDiffCapture3/58);
+				//printf("\r\n Value Left: %d cm", uwDiffCapture3/58);
 					
 				uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture3;
 				TIM3->CCER &= ~TIM_CCER_CC4P;
