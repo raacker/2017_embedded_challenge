@@ -123,10 +123,20 @@ extern UART_HandleTypeDef UartHandle1, UartHandle2;
 
 
 /* ------------------------------ Team Defined Variables ------------------------------  */
-void IRSensor(void *);
+void IR_Sensor(void *);
+void IR_Left_Diagonal_Detected(void *);
+void IR_Right_Diagonal_Detected(void *);
 
-uint32_t 			  forwardObstacleDetected = 0;
-uint32_t  			  machineStopped = 0;
+void US_Sensor(void *);
+void US_Forward_Detected(void *);
+void US_Drive_Until_Desired_Direction(void *);
+
+void motor_left_turn(void);
+void motor_right_turn(void);
+
+
+uint32_t        direction;
+
 
 
 
@@ -383,31 +393,17 @@ int main(void)
 	/*##-3- Start PWM signals generation #######################################*/ 
 	/* Start channel 3 */	
 	HAL_TIM_PWM_Start(&TimHandle4, TIM_CHANNEL_1);
-/*
-    xTaskCreate(Detect_obstacle,
-                      (const signed char *)"Detect_obstacle",
-                      400,
-                      NULL,
-                      3,
-                      NULL
-                      );
-											
-    xTaskCreate(Motor_control,
-                      (const signed char *)"Motor_control",
-                      400,
-                      NULL,
-                      3,
-                      NULL
-                      );
-	*/									
-    xTaskCreate(IRSensor,
-                        (const signed char *)"IRSensor",
+
+
+    xTaskCreate(IR_Sensor,
+                        (const signed char *)"IR_Sensor",
                         400,
                         NULL,
                         3,
                         NULL
                         );
                        
+                        
 	printf("\r\n ------------------- System Enabled -------------------");
 
 	//Motor_Forward();
@@ -415,7 +411,7 @@ int main(void)
 	vTaskStartScheduler();
 }
 
-void IRSensor(void *params) {
+void IR_Sensor(void *params) {
     while(1) {
         HAL_ADC_Start(&AdcHandle3);
 		//현재 ADC 값을 읽어온다.
@@ -423,29 +419,63 @@ void IRSensor(void *params) {
 		HAL_ADC_PollForConversion(&AdcHandle3, 0xFF);
 		if(uhADCxForward >2000) uhADCxForward= 2000;
 		else if(uhADCxForward<100)	uhADCxForward = 100;
-		printf("\r\nIR sensor Forward = %d", uhADCxForward);
+		//printf("\r\nIR sensor Forward = %d", uhADCxForward);
 	
 		HAL_ADC_Start(&AdcHandle1);
 		uhADCxLeft = HAL_ADC_GetValue(&AdcHandle1);
 		HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);	
 		if(uhADCxLeft >2000) uhADCxLeft= 2000;
 		else if(uhADCxLeft<100) uhADCxLeft = 100;
-		//printf("\r\nIR sensor Left = %d", uhADCxLeft);
+		printf("\r\nIR sensor Left = %d", uhADCxLeft);
 		
 		HAL_ADC_Start(&AdcHandle2);
 		uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
 		HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
 		if(uhADCxRight >2000) uhADCxRight= 2000;
 		else if(uhADCxRight<100) uhADCxRight = 100;
-		//printf("\r\nIR sensor Right = %d", uhADCxRight);
+		printf("\r\nIR sensor Right = %d", uhADCxRight);
         
-        vTaskDelay(1000);
+        vTaskDelay(500);
     }
 }
 
+void IR_Left_Diagonal_Detected(void *params) {
+    // 적외선 센서 왼쪽 값에서 한계값 도달
+}
 
+void IR_Right_Diagonal_Detected(void *params) {
+    // 적외선 센서 오른쪽 값에서 한계값 도달
+}
 
+void US_Sensor(void *params) {
+    //초음파 센서 값 업데이트
+}
 
+void US_Forward_Detected(void *params) {
+    //전방에 장애물이 한계값에서 발견
+}
+
+void US_Drive_Until_Desired_Direction(void *params) {
+    // 좌우에 원하는 방향으로 갈 수 있을때까지 진행
+}
+
+void motor_left_turn(void) {
+    // 왼쪽으로 90도 회전
+    Motor_Left();
+    osDelay(1000);
+    Motor_Stop();
+    Motor_Forward();
+    // US_Drive_Until_Desired_Direction call
+}
+
+void motor_right_turn(void) {
+    // 오른쪽으로 90도 회전
+    Motor_Right();
+    osDelay(1000);
+    Motor_Stop();
+    Motor_Forward();
+    // US_Drive_Until_Desired_Direction call
+}
 
 
 
