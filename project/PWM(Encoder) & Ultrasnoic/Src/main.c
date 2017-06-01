@@ -137,9 +137,11 @@ void us_drive_until_desired_direction();
 
 void motor_left_turn(void);
 void motor_right_turn(void);
+void ir_left_diagonal_detected(void);
+void ir_right_diagonal_detected(void);
 
 #define IR_OBSTACLE_DETECTED_DISTANCE 1500
-const portTickType irDelay = 300 / portTICK_RATE_MS;
+const portTickType ir_delay = 500 / portTICK_RATE_MS;
 
 //TODO : variables to register variable for more faster execution
 volatile int                         direction = 90;
@@ -410,14 +412,8 @@ int main(void)
 
     ir_left_diagonal_semaphore = xSemaphoreCreateMutex();
     ir_right_diagonal_semaphore = xSemaphoreCreateMutex();
-    //us_front_semaphore = xSemaphoreCreateMutex();
-    //us_left_right_semaphore = xSemaphoreCreateMutex();
-    //xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, NULL);
-    //xTaskCreate(IR_Left_Diagonal_Detected, (const signed char *)"IR_Left_Diagonal_Detected", 400, NULL, 4, &ir_left_diagonal_handle);
-    //xTaskCreate(IR_Right_Diagonal_Detected, (const signed char *)"IR_Right_Diagonal_Detected", 400, NULL, 4, &ir_right_diagonal_handle);
     xTaskCreate(US_Sensor, (const signed char *)"US_Sensor", 400, NULL, 4, NULL);
-    //xTaskCreate(US_Drive_Until_Desired_Direction, (const signed char *)"US_Drive_Until_Desired_Direction", 400, NULL, 4, &us_left_right_handle);
-                       
+    xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, NULL);                
                         
 	printf("\r\n ------------------- System Enabled -------------------");
 
@@ -428,43 +424,50 @@ int main(void)
 
 void IR_Sensor(void *params) {
     while(1) {
-        /*
-        HAL_ADC_Start(&AdcHandle3);
-		//현재 ADC 값을 읽어온다.
-		uhADCxForward = HAL_ADC_GetValue(&AdcHandle3);
-		HAL_ADC_PollForConversion(&AdcHandle3, 0xFF);
-		if(uhADCxForward >2000) uhADCxForward= 2000;
-		else if(uhADCxForward<100)	uhADCxForward = 100;
-		//printf("\r\nIR sensor Forward = %d", uhADCxForward);
-        */
-        
-        if(xSemaphoreTake(ir_left_diagonal_semaphore, 0) == pdTRUE) {
+        //if(xSemaphoreTake(ir_left_diagonal_semaphore, 0) == pdTRUE) {
             HAL_ADC_Start(&AdcHandle1);
             uhADCxLeft = HAL_ADC_GetValue(&AdcHandle1);
             HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);
-            if(uhADCxLeft > IR_OBSTACLE_DETECTED_DISTANCE)
-                vTaskResume(ir_left_diagonal_handle);
-            xSemaphoreGive(ir_left_diagonal_semaphore);
-        }
-                
-		//if(uhADCxLeft >2000) uhADCxLeft= 2000;
-		//else if(uhADCxLeft<100) uhADCxLeft = 100;
-		//printf("\r\nIR sensor Left = %d", uhADCxLeft);
+            printf("\r\n IR Left : %d", uhADCxLeft);
+            if(uhADCxLeft > IR_OBSTACLE_DETECTED_DISTANCE) {
+                //vTaskResume(ir_left_diagonal_handle);
+                ir_left_diagonal_detected();
+            }
+            //xSemaphoreGive(ir_left_diagonal_semaphore);
+        //}
 		
-        if(xSemaphoreTake(ir_right_diagonal_semaphore, 0) == pdTRUE) {
+        //if(xSemaphoreTake(ir_right_diagonal_semaphore, 0) == pdTRUE) {
             HAL_ADC_Start(&AdcHandle2);
             uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
             HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
-            if(uhADCxRight > IR_OBSTACLE_DETECTED_DISTANCE)
-                vTaskResume(ir_right_diagonal_handle);
-            xSemaphoreGive(ir_right_diagonal_semaphore);
-        }
+            printf("\r\n IR Right : %d", uhADCxRight);
+            if(uhADCxRight > IR_OBSTACLE_DETECTED_DISTANCE) {
+                //vTaskResume(ir_right_diagonal_handle);
+                ir_right_diagonal_detected();
+            }
+            //xSemaphoreGive(ir_right_diagonal_semaphore);
+        //}
         
-		//if(uhADCxRight >2000) uhADCxRight= 2000;
-		//else if(uhADCxRight<100) uhADCxRight = 100;
-		//printf("\r\nIR sensor Right = %d", uhADCxRight);
-        vTaskDelay(200);
+        //vTaskDelay(ir_delay);
     }
+}
+
+void ir_left_diagonal_detected(void) {
+    Motor_Stop();
+    Motor_Right();
+    printf("\r\n Turn Right");
+    osDelay(200);
+    Motor_Stop();
+    Motor_Forward();    
+}
+
+void ir_right_diagonal_detected(void) {
+    Motor_Stop();
+    Motor_Left();
+    printf("\r\n Turn Left");
+    osDelay(200);
+    Motor_Stop();
+    Motor_Forward();    
 }
 
 void IR_Left_Diagonal_Detected(void *params) {
@@ -474,7 +477,7 @@ void IR_Left_Diagonal_Detected(void *params) {
         vTaskSuspend(ir_left_diagonal_handle);
         Motor_Stop();
         Motor_Right();
-        vTaskDelay(irDelay);
+        vTaskDelay(ir_delay);
         Motor_Stop();
         Motor_Forward();       
     }
@@ -487,7 +490,7 @@ void IR_Right_Diagonal_Detected(void *params) {
         vTaskSuspend(ir_right_diagonal_handle);
         Motor_Stop();
         Motor_Left();
-        vTaskDelay(irDelay);
+        vTaskDelay(ir_delay);
         Motor_Stop();
         Motor_Forward();       
     }
