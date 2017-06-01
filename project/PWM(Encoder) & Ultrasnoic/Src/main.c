@@ -131,8 +131,9 @@ void IR_Left_Diagonal_Detected(void *);
 void IR_Right_Diagonal_Detected(void *);
 
 void US_Sensor(void *);
-void US_Forward_Detected(void *);
-void US_Drive_Until_Desired_Direction(void *);
+void us_forward_detected();
+void us_drive_until_desired_direction();
+//void US_Drive_Until_Desired_Direction(void *);
 
 void motor_left_turn(void);
 void motor_right_turn(void);
@@ -147,15 +148,13 @@ xTaskHandle                     ir_right_diagonal_handle;
 xSemaphoreHandle            ir_left_diagonal_semaphore;
 xSemaphoreHandle            ir_right_diagonal_semaphore;
 
-#define US_FRONT_OBSTACLE_DETECTING_LIMIT      10   
+#define US_FRONT_OBSTACLE_DETECTING_LIMIT      30   
 #define US_LEFT_RIGHT_MOVABLE_LIMIT                   500
 uint32_t                            us_front_distance = 862;
 uint32_t                            us_left_distance = 862;
 uint32_t                            us_right_distance = 862; 
-xTaskHandle                     us_front_handle;
-xTaskHandle                     us_left_right_handle;
-xSemaphoreHandle           us_front_semaphore;
-xSemaphoreHandle           us_left_right_semaphore;
+//xTaskHandle                     us_left_right_handle;
+//xSemaphoreHandle           us_left_right_semaphore;
     
 #ifdef __GNUC__
   /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -411,19 +410,18 @@ int main(void)
 
     ir_left_diagonal_semaphore = xSemaphoreCreateMutex();
     ir_right_diagonal_semaphore = xSemaphoreCreateMutex();
-    us_front_semaphore = xSemaphoreCreateMutex();
-    us_left_right_semaphore = xSemaphoreCreateMutex();
+    //us_front_semaphore = xSemaphoreCreateMutex();
+    //us_left_right_semaphore = xSemaphoreCreateMutex();
     //xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, NULL);
     //xTaskCreate(IR_Left_Diagonal_Detected, (const signed char *)"IR_Left_Diagonal_Detected", 400, NULL, 4, &ir_left_diagonal_handle);
     //xTaskCreate(IR_Right_Diagonal_Detected, (const signed char *)"IR_Right_Diagonal_Detected", 400, NULL, 4, &ir_right_diagonal_handle);
     xTaskCreate(US_Sensor, (const signed char *)"US_Sensor", 400, NULL, 4, NULL);
-    xTaskCreate(US_Forward_Detected, (const signed char *)"US_Forward_Detected", 400, NULL, 4, &us_front_handle);
-    xTaskCreate(US_Drive_Until_Desired_Direction, (const signed char *)"US_Drive_Until_Desired_Direction", 400, NULL, 4, &us_left_right_handle);
+    //xTaskCreate(US_Drive_Until_Desired_Direction, (const signed char *)"US_Drive_Until_Desired_Direction", 400, NULL, 4, &us_left_right_handle);
                        
                         
 	printf("\r\n ------------------- System Enabled -------------------");
 
-	//Motor_Forward();
+    Motor_Forward();
 										
 	vTaskStartScheduler();
 }
@@ -501,39 +499,66 @@ void US_Sensor(void *params) {
         us_right_distance = uwDiffCapture1/58;
         us_front_distance = uwDiffCapture2/58;
         us_left_distance = uwDiffCapture3/58;
+        
         printf("\r\nFront = %d", us_front_distance);
+        if (us_front_distance < US_FRONT_OBSTACLE_DETECTING_LIMIT) {
+            printf("\r\nObstacle Detected on front");
+            us_forward_detected();
+        }
+          
         printf("\r\nLeft = %d", us_left_distance);
         printf("\r\nRight = %d", us_right_distance);
         vTaskDelay(500);
     }
 }
 
-void US_Forward_Detected(void *params) {
-    //전방에 장애물이 한계값에서 발견
-    while(1) { 
-        if (us_front_distance < US_FRONT_OBSTACLE_DETECTING_LIMIT) {
-            printf("\r\nObstacle Detected on front");
-            vTaskSuspend(us_front_handle);
-            if(us_left_distance < us_right_distance) {
-                motor_right_turn();
-            } else {
-                motor_left_turn();
-            }
-            vTaskResume(us_left_right_handle);
-        } else {
-            //Motor_Forward();
-        }
-        vTaskDelay(100);
+void us_forward_detected() {
+    if(us_left_distance < us_right_distance) {
+        motor_right_turn();
+    } else {
+        motor_left_turn();
     }
 }
 
+void us_drive_until_desired_direction() {
+    // 좌우에 원하는 방향으로 갈 수 있을때까지 진행
+    while(1) {
+         if (-5 <= direction && direction <= 5) {
+            break;
+        } else {
+            if (us_left_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
+                printf("\r\n Left movable");
+                Motor_Stop();
+                motor_left_turn();    
+                break;
+            } else if (us_right_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
+                printf("\r\n Right movable");
+                Motor_Stop();
+                motor_right_turn();
+                break;
+            } else {
+                // Just keep going
+            }
+        }
+    }
+}
+/*
+void US_Forward_Detected(void *params) {
+    while(1){
+        if (us_front_distance < US_FRONT_OBSTACLE_DETECTING_LIMIT) {
+            printf("\r\nObstacle Detected on front");
+            us_forward_detected();
+        }
+    }
+}
+    
 void US_Drive_Until_Desired_Direction(void *params) {
     // 좌우에 원하는 방향으로 갈 수 있을때까지 진행
     while(1) { 
+        vTaskSuspend(us_left_right_handle);
         // error rate : -5 ~ +5
         if (-5 <= direction && direction <= 5) {
             vTaskSuspend(us_left_right_handle);
-            vTaskResume(us_front_handle);
         } else {
             if (us_left_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
                 printf("\r\n Left movable");
@@ -551,26 +576,28 @@ void US_Drive_Until_Desired_Direction(void *params) {
         }
         vTaskDelay(100);
     }
-}
+}*/
 
 void motor_left_turn(void) {
     // 왼쪽으로 90도 회전
     direction -= 90;
+    Motor_Stop();
     Motor_Left();
-    osDelay(1000);
+    osDelay(800);
     Motor_Stop();
     Motor_Forward();
-    vTaskResume(us_left_right_handle);
+  //  vTaskResume(us_left_right_handle);
 }
 
 void motor_right_turn(void) {
     // 오른쪽으로 90도 회전
     direction += 90;
+    Motor_Stop();
     Motor_Right();
-    osDelay(1000);
+    osDelay(800);
     Motor_Stop();
     Motor_Forward();
-    vTaskResume(us_left_right_handle);
+   // vTaskResume(us_left_right_handle);
 }
 
 
