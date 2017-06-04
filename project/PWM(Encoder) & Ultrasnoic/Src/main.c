@@ -74,8 +74,8 @@ TIM_OC_InitTypeDef sConfig1, sConfig2, sConfig3;
 
 /* Counter Prescaler value */
 uint32_t uwPrescalerValue = 0;
-uint16_t motorInterrupt1 = 0;
-uint16_t motorInterrupt2 = 0;
+volatile uint16_t motorInterrupt1 = 0;
+volatile uint16_t motorInterrupt2 = 0;
 
 uint8_t encoder_right = READY ;
 uint8_t encoder_left  = READY ;
@@ -133,28 +133,32 @@ void US_Sensor(void *);
 void US_Forward_Detected(void *);
 void Turn_Left(void *);
 void Turn_Right(void *);
+void Encoder_Test(void *);
 
-void motor_left_turn(void);
-void motor_right_turn(void);
+
+void motor_left_turn(uint16_t);
+void motor_right_turn(uint16_t);
 
 #define IR_OBSTACLE_DETECTED_DISTANCE 1000
 
 //TODO : variables to register variable for more faster execution
 #define US_FRONT_OBSTACLE_DETECTING_LIMIT      30   
 #define US_LEFT_RIGHT_MOVABLE_LIMIT                   60
-#define TURN_90_DEGREE_DELAY 35000000//1040
-#define TURN_45_DEGREE_DELAY 20000000//600
-#define TURN_15_DEGREE_DELAY 7000000//360
-#define DELAY_BEFROE_TURN 25000000//800
-#define TASK_DELAY 500
 #define FORWARD 0
 #define RIGHT 1
 #define BACKWARD 2
 #define LEFT 3
+#define TURN_90_DEGREE_COUNT 840
+#define TURN_30_DEGREE_COUNT (TURN_90_DEGREE_COUNT/3)
+#define TURN_15_DEGREE_COUNT (TURN_90_DEGREE_COUNT/6)
+#define STOP_DELAY 10000000
+#define DELAY_BEFROE_TURN 25000000
+#define TASK_DELAY 100
 
-uint32_t                            us_front_distance;
-uint32_t                            us_left_distance;
-uint32_t                            us_right_distance; 
+
+volatile uint32_t                            us_front_distance;
+volatile uint32_t                            us_left_distance;
+volatile uint32_t                            us_right_distance; 
 int direction;
 int angle_error;
 xTaskHandle ir_left_handle; 
@@ -419,7 +423,7 @@ int main(void)
 	HAL_TIM_PWM_Start(&TimHandle4, TIM_CHANNEL_1);
 
 
-
+    
     xTaskCreate(Turn_Left, (const signed char *)"Turn_Left", 400, NULL, 4, &turn_left_handle);
     xTaskCreate(Turn_Right, (const signed char *)"Turn_Right", 400, NULL, 4, &turn_right_handle);
     xTaskCreate(US_Forward_Detected, (const signed char *)"US_Forward_Detected", 400, NULL, 4, &us_forward_handle);
@@ -447,8 +451,6 @@ void IR_Sensor(void *params) {
         if(uhADCxLeft > IR_OBSTACLE_DETECTED_DISTANCE) {
             printf("\r\n IR Left Detedted");
             vTaskResume(ir_left_handle);
-            //vTaskSuspend(ir_handle);
-            //vTaskSuspend(us_handle);
         }
 		
         HAL_ADC_Start(&AdcHandle2);
@@ -458,8 +460,6 @@ void IR_Sensor(void *params) {
         if(uhADCxRight > IR_OBSTACLE_DETECTED_DISTANCE) {
             printf("\r\n IR Right Detedted");
             vTaskResume(ir_right_handle);
-            //vTaskSuspend(ir_handle);
-            //vTaskSuspend(us_handle);
         }
         
         osDelay(TASK_DELAY);
@@ -471,29 +471,21 @@ void IR_Left_Detected(void *params) {
         vTaskSuspend(ir_left_handle);
         Motor_Stop();
         Motor_Right();
-        //osDelay(TURN_15_DEGREE_DELAY);
-        for(int i=0; i<TURN_15_DEGREE_DELAY; i++);
+        motor_right_turn(TURN_15_DEGREE_COUNT);
         Motor_Stop();
-        //osDelay(100);
         Motor_Forward();
-        
+       
         angle_error += 15;
         if(angle_error >= 30) {
-            //osDelay(DELAY_BEFROE_TURN);
-             for(int i=0; i<DELAY_BEFROE_TURN; i++);
+            for(int i=0; i<DELAY_BEFROE_TURN; i++);
             Motor_Stop();
             Motor_Left();
             printf("\r\n Angle Error Detected!! Turn Left");
-            //osDelay(TURN_45_DEGREE_DELAY);
-            for(int i=0; i<TURN_45_DEGREE_DELAY; i++);
-            angle_error -= 30;
+            motor_left_turn(TURN_30_DEGREE_COUNT);
             Motor_Stop();
-            //osDelay(100);
             Motor_Forward();
+            angle_error -= 30;
         }
-        
-        //vTaskResume(us_handle);
-        //vTaskResume(ir_handle);
     }
 }
 
@@ -502,29 +494,21 @@ void IR_Right_Detected(void *params) {
         vTaskSuspend(ir_right_handle);
         Motor_Stop();
         Motor_Left();
-        //osDelay(TURN_15_DEGREE_DELAY);
-        for(int i=0; i<TURN_15_DEGREE_DELAY; i++);
+        motor_left_turn(TURN_15_DEGREE_COUNT);
         Motor_Stop();
-        //osDelay(100);
         Motor_Forward(); 
         
         angle_error -= 15;
         if(angle_error <= -30) {
-            //osDelay(DELAY_BEFROE_TURN);
             for(int i=0; i<DELAY_BEFROE_TURN; i++);
             Motor_Stop();
             Motor_Right();
-            printf("\r\n Angle Error Detected!! Turn Left");
-            //osDelay(TURN_45_DEGREE_DELAY);
-            for(int i=0; i<TURN_45_DEGREE_DELAY; i++);
-            angle_error += 30;
+            printf("\r\n Angle Error Detected!! Turn Right");
+            motor_right_turn(TURN_30_DEGREE_COUNT);
             Motor_Stop();
-            //osDelay(100);
             Motor_Forward();
+            angle_error += 30;
         }
-        
-        //vTaskResume(us_handle);
-        //vTaskResume(ir_handle);
     }
 }
 
@@ -543,22 +527,16 @@ void US_Sensor(void *params) {
         if (us_front_distance < US_FRONT_OBSTACLE_DETECTING_LIMIT) {
             printf("\r\nObstacle Detected on front");
             vTaskResume(us_forward_handle);
-            //vTaskSuspend(ir_handle);
-            //vTaskSuspend(us_handle);
         }
           
         if(direction == LEFT && us_right_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
             printf("\r\n US Left Detected");
             vTaskResume(turn_right_handle);
-            //vTaskSuspend(ir_handle);
-            //vTaskSuspend(us_handle);
         }
         
         if(direction == RIGHT && us_left_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
             printf("\r\n US Right Detedted");
             vTaskResume(turn_left_handle);
-            //vTaskSuspend(ir_handle);
-            //vTaskSuspend(us_handle);
         }
         
         osDelay(TASK_DELAY);
@@ -568,24 +546,19 @@ void US_Sensor(void *params) {
 void Turn_Right(void *params) {
     while(1) {
         vTaskSuspend(turn_right_handle);
-        //osDelay(DELAY_BEFROE_TURN);
         for(int i=0; i<DELAY_BEFROE_TURN; i++);
-        motor_right_turn();
+        motor_right_turn(TURN_90_DEGREE_COUNT);
         direction = FORWARD;
-        //vTaskResume(us_handle);
-        //vTaskResume(ir_handle);
     }
 }
 
 void Turn_Left(void *params) {
     while(1) {
         vTaskSuspend(turn_left_handle);
-        //osDelay(DELAY_BEFROE_TURN);
         for(int i=0; i<DELAY_BEFROE_TURN; i++);
-        motor_left_turn();
+        motor_left_turn(TURN_90_DEGREE_COUNT);
         direction = FORWARD;
-        //vTaskResume(us_handle);
-        //vTaskResume(ir_handle);
+
     }
 }
 
@@ -593,48 +566,56 @@ void US_Forward_Detected(void *params) {
     while(1) {
         vTaskSuspend(us_forward_handle);
         if(direction == LEFT && us_right_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
-            motor_right_turn();
+            printf("\r\nObstacle Detected on front Turn Right");
+            motor_right_turn(TURN_90_DEGREE_COUNT);
             direction = FORWARD;
         }
         else if(direction == RIGHT && us_left_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
-            motor_left_turn();
+            printf("\r\nObstacle Detected on front Turn Left");
+            motor_left_turn(TURN_90_DEGREE_COUNT);
             direction = FORWARD;
         }
         else {     
             if(us_left_distance < us_right_distance) {
-                motor_right_turn();
+                motor_right_turn(TURN_90_DEGREE_COUNT);
                 direction += 1;
                 if(direction > 3) direction = FORWARD;
             } else {
-                motor_left_turn();
+                motor_left_turn(TURN_90_DEGREE_COUNT);
                 direction -=1;
                 if(direction < 0) direction = LEFT;
             }
         }
-        //vTaskResume(us_handle);
-        //vTaskResume(ir_handle);
     }
 }
 
-void motor_left_turn(void) {
+void motor_left_turn(uint16_t count) {
     // 왼쪽으로 90도 회전
     Motor_Stop();
+    motorInterrupt1 = count;
+    motorInterrupt2 = count;
     Motor_Left();
-    //osDelay(TURN_90_DEGREE_DELAY);
-    for(int i=0; i<TURN_90_DEGREE_DELAY; i++);
+    while(motorInterrupt2 <= count && motorInterrupt1 <= count); //{
+    //   printf("\r\n motorInterrupt1 : %d", motorInterrupt1);
+    //   printf("\r\n motorInterrupt2 : %d", motorInterrupt2);
+    //}
+    printf("\r\n -------------------- Left end --------------------");
     Motor_Stop();
-    //osDelay(100);
     Motor_Forward();
 }
 
-void motor_right_turn(void) {
+void motor_right_turn(uint16_t count) {
     // 오른쪽으로 90도 회전
     Motor_Stop();
+    motorInterrupt1 = 0;
+    motorInterrupt2 = 0;
     Motor_Right();
-    //osDelay(TURN_90_DEGREE_DELAY);
-    for(int i=0; i<TURN_90_DEGREE_DELAY; i++);
+    while(motorInterrupt2 <= count && motorInterrupt1 <= count); //{
+    //    printf("\r\n motorInterrupt1 : %d", motorInterrupt1);
+    //    printf("\r\n motorInterrupt2 : %d", motorInterrupt2);
+    //}
+    printf("\r\n -------------------- Right end --------------------");
     Motor_Stop();
-    //osDelay(100);
     Motor_Forward();
 }
 
@@ -669,6 +650,7 @@ void Motor_Stop(void)
 	HAL_TIM_PWM_Stop(&TimHandle1, TIM_CHANNEL_2);				
 	HAL_TIM_PWM_Stop(&TimHandle2, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Stop(&TimHandle2, TIM_CHANNEL_2);
+    for(int i=0; i<STOP_DELAY; i++);
 }
 
 void Motor_Speed_Up_Config(void)
