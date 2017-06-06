@@ -134,6 +134,7 @@ void US_Forward_Detected(void *);
 void Turn_Left(void *);
 void Turn_Right(void *);
 void Encoder_Test(void *);
+void IR_Detector(void *);
 
 
 void motor_left_turn(uint16_t);
@@ -142,9 +143,7 @@ void motor_right_turn(uint16_t);
 void direction_change(int direct, int);
 
 #define IR_OBSTACLE_DETECTED_DISTANCE 950
-
-//TODO : variables to register variable for more faster execution
-#define US_FRONT_OBSTACLE_DETECTING_LIMIT      30   
+#define US_FRONT_OBSTACLE_DETECTING_LIMIT      26   
 #define US_LEFT_RIGHT_MOVABLE_LIMIT                   60
 #define FORWARD 0
 #define RIGHT 1
@@ -152,13 +151,13 @@ void direction_change(int direct, int);
 #define LEFT 3
 #define TURN_180_DEGREE_COUNT 1800
 #define TURN_90_DEGREE_COUNT 900
-#define TURN_30_DEGREE_COUNT (TURN_90_DEGREE_COUNT/3)
-#define TURN_15_DEGREE_COUNT (TURN_90_DEGREE_COUNT/6)
-#define STOP_DELAY 10000000
+#define TURN_30_DEGREE_COUNT 500//(TURN_90_DEGREE_COUNT/3)
+#define TURN_15_DEGREE_COUNT 300//(TURN_90_DEGREE_COUNT/6)
+#define STOP_DELAY 7000000
 #define DELAY_BEFROE_TURN 25000000
 #define TASK_DELAY 80
 
-#define __DEBUG_ON__
+//#define __DEBUG_ON__
 
 volatile uint32_t                            us_front_distance;
 volatile uint32_t                            us_left_distance;
@@ -433,8 +432,9 @@ int main(void)
     xTaskCreate(US_Forward_Detected, (const signed char *)"US_Forward_Detected", 400, NULL, 4, &us_forward_handle);
     xTaskCreate(IR_Left_Detected, (const signed char *)"IR_Left_Detected", 400, NULL, 4, &ir_left_handle);
     xTaskCreate(IR_Right_Detected, (const signed char *)"IR_Right_Detected", 400, NULL, 4, &ir_right_handle);
-    xTaskCreate(US_Sensor, (const signed char *)"US_Sensor", 400, NULL, 3, &us_handle);
-    xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 3, &ir_handle);
+    xTaskCreate(US_Sensor, (const signed char *)"US_Sensor", 400, NULL, 3, NULL);
+    xTaskCreate(IR_Detector, (const signed char *)"IR_Detector", 400, NULL, 3, NULL);
+    xTaskCreate(IR_Sensor, (const signed char *)"IR_Sensor", 400, NULL, 5, NULL);
     
     direction_semaphore = xSemaphoreCreateMutex();
 	printf("\r\n ------------------- System Enabled -------------------");
@@ -456,11 +456,6 @@ void IR_Sensor(void *params) {
         printf("\r\nIR_Sensor: IR Left : %d", uhADCxLeft);
         #endif
         
-        if(uhADCxLeft > IR_OBSTACLE_DETECTED_DISTANCE) {
-            printf("\r\n IR_Sensor:  Left Detedted");
-            vTaskResume(ir_left_handle);
-        }
-		
         HAL_ADC_Start(&AdcHandle2);
         uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
         HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
@@ -468,7 +463,18 @@ void IR_Sensor(void *params) {
             printf("\r\nIR_Sensor: IR Right : %d", uhADCxRight);
         #endif
         
-        if(uhADCxRight > IR_OBSTACLE_DETECTED_DISTANCE) {
+        osDelay(TASK_DELAY);
+    }
+}
+
+void IR_Detector(void *params) {
+    while(1) {
+        if(uhADCxLeft > IR_OBSTACLE_DETECTED_DISTANCE) {
+            printf("\r\n IR_Sensor:  Left Detedted");
+            vTaskResume(ir_left_handle);
+        }
+        
+        else if(uhADCxRight > IR_OBSTACLE_DETECTED_DISTANCE) {
             printf("\r\n IR_Sensor: Right Detedted");
             vTaskResume(ir_right_handle);
         }
@@ -480,13 +486,9 @@ void IR_Sensor(void *params) {
 void IR_Left_Detected(void *params) {
     while(1) {
         vTaskSuspend(ir_left_handle);
-        Motor_Stop();
-        Motor_Right();
         motor_right_turn(TURN_15_DEGREE_COUNT);
-        Motor_Stop();
-        Motor_Forward();
-       /*
-        angle_error += 15;
+       
+        /*angle_error += 15;
         if(angle_error >= 30) {
             for(int i=0; i<DELAY_BEFROE_TURN; i++);
             Motor_Stop();
@@ -503,13 +505,9 @@ void IR_Left_Detected(void *params) {
 void IR_Right_Detected(void *params) {
     while(1) {
         vTaskSuspend(ir_right_handle);
-        Motor_Stop();
-        Motor_Left();
         motor_left_turn(TURN_15_DEGREE_COUNT);
-        Motor_Stop();
-        Motor_Forward(); 
-        /*
-        angle_error -= 15;
+        
+        /*angle_error -= 15;
         if(angle_error <= -30) {
             for(int i=0; i<DELAY_BEFROE_TURN; i++);
             Motor_Stop();
@@ -612,7 +610,7 @@ void US_Forward_Detected(void *params) {
                 /*direction -=1;
                 if(direction < 0) direction = LEFT;*/
             }
-            printf("\r\n Forward_Detected: turn in correct direction");
+            printf("\r\n Forward_Detected: turn in random direction");
         }
         //#ifdef __DEBUG_ON__
             printf("\r\n Changed Direction : %d", direction);
