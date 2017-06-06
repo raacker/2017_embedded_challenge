@@ -146,18 +146,21 @@ void direction_change(int direct, int);
 #define US_FRONT_OBSTACLE_DETECTING_LIMIT      26   
 #define US_LEFT_RIGHT_MOVABLE_LIMIT                   60
 #define FORWARD 0
-#define RIGHT 1
-#define BACKWARD 2
-#define LEFT 3
+#define RIGHT 3
+#define BACKWARD 6
+#define LEFT 9
+#define TOTAL_DIRECTION 12
+#define DEFAULT_DIRECTION 0 
+
 #define TURN_180_DEGREE_COUNT 1800
 #define TURN_90_DEGREE_COUNT 900
-#define TURN_30_DEGREE_COUNT 500//(TURN_90_DEGREE_COUNT/3)
-#define TURN_15_DEGREE_COUNT 300//(TURN_90_DEGREE_COUNT/6)
+#define TURN_30_DEGREE_COUNT 300  //(TURN_90_DEGREE_COUNT/3)
 #define STOP_DELAY 7000000
 #define DELAY_BEFROE_TURN 25000000
 #define TASK_DELAY 80
 
-//#define __DEBUG_ON__
+//#define __DEBUG_IR_ON__
+//#define __DEBUG_US_ON__
 
 volatile uint32_t                            us_front_distance;
 volatile uint32_t                            us_left_distance;
@@ -452,14 +455,14 @@ void IR_Sensor(void *params) {
         HAL_ADC_Start(&AdcHandle1);
         uhADCxLeft = HAL_ADC_GetValue(&AdcHandle1);
         HAL_ADC_PollForConversion(&AdcHandle1, 0xFF);
-        #ifdef __DEBUG_ON__
+        #ifdef __DEBUG_IR_ON__
         printf("\r\nIR_Sensor: IR Left : %d", uhADCxLeft);
         #endif
         
         HAL_ADC_Start(&AdcHandle2);
         uhADCxRight = HAL_ADC_GetValue(&AdcHandle2);
         HAL_ADC_PollForConversion(&AdcHandle2, 0xFF);
-        #ifdef __DEBUG_ON__
+        #ifdef __DEBUG_IR_ON__
             printf("\r\nIR_Sensor: IR Right : %d", uhADCxRight);
         #endif
         
@@ -486,7 +489,7 @@ void IR_Detector(void *params) {
 void IR_Left_Detected(void *params) {
     while(1) {
         vTaskSuspend(ir_left_handle);
-        motor_right_turn(TURN_15_DEGREE_COUNT);
+        motor_right_turn(TURN_30_DEGREE_COUNT);
        
         /*angle_error += 15;
         if(angle_error >= 30) {
@@ -505,7 +508,7 @@ void IR_Left_Detected(void *params) {
 void IR_Right_Detected(void *params) {
     while(1) {
         vTaskSuspend(ir_right_handle);
-        motor_left_turn(TURN_15_DEGREE_COUNT);
+        motor_left_turn(TURN_30_DEGREE_COUNT);
         
         /*angle_error -= 15;
         if(angle_error <= -30) {
@@ -528,7 +531,7 @@ void US_Sensor(void *params) {
         us_right_distance = uwDiffCapture1/58;
         us_front_distance = uwDiffCapture2/58;
         us_left_distance = uwDiffCapture3/58;
-        #ifdef __DEBUG_ON__
+        #ifdef __DEBUG_US_ON__
             printf("\r\nFront = %d", us_front_distance);
             printf("\r\nLeft = %d", us_left_distance);
             printf("\r\nRight = %d", us_right_distance);
@@ -598,28 +601,41 @@ void US_Forward_Detected(void *params) {
         }
         else {     
             if(us_left_distance < us_right_distance) {
-                motor_right_turn(TURN_90_DEGREE_COUNT+30);
-                direction_change(1, 1);
+                //motor_right_turn(TURN_90_DEGREE_COUNT);
+                motor_right_turn(TURN_90_DEGREE_COUNT + (TOTAL_DIRECTION - direction) * TURN_30_DEGREE_COUNT);
                 /*direction += 1;
-                
-                `
                 if(direction > 3) direction = FORWARD;*/
             } else {
-                motor_left_turn(TURN_90_DEGREE_COUNT);
-                direction_change(-1, 1);
+                //motor_left_turn(TURN_90_DEGREE_COUNT);
+                motor_left_turn(TURN_90_DEGREE_COUNT + (direction - DEFAULT_DIRECTION) * TURN_30_DEGREE_COUNT);
                 /*direction -=1;
                 if(direction < 0) direction = LEFT;*/
             }
             printf("\r\n Forward_Detected: turn in random direction");
         }
-        //#ifdef __DEBUG_ON__
-            printf("\r\n Changed Direction : %d", direction);
-        //#endif
+        printf("\r\n Changed Direction : %d", direction);
     }
 } 
 
 void motor_left_turn(uint16_t count) {
     // 왼쪽으로 90도 회전
+    /*
+        switch(direction_counter / TURN_30_DEGREE_COUNT) {
+            case TURN_30_DEGREE_COUNT:
+                direction_change(11, 1);
+                break;
+            case TURN_90_DEGREE_COUNT:
+                direction_change(9, 1);
+                break;
+            case TURN_180_DEGREE_COUNT:
+                direction_change(6, 1);
+                break;
+    }*/
+    
+    uint16_t direction_counter = count;
+    direction_counter /= TURN_30_DEGREE_COUNT;
+    direction_change(11 * direction_counter, 1);
+    
     Motor_Stop();
     motorInterrupt1 = count;
     motorInterrupt2 = count;
@@ -632,6 +648,26 @@ void motor_left_turn(uint16_t count) {
 
 void motor_right_turn(uint16_t count) {
     // 오른쪽으로 90도 회전
+    /*
+    switch(count) {
+        case TURN_30_DEGREE_COUNT:
+            direction_change(1, 1);
+            break;
+        case TURN_90_DEGREE_COUNT:
+            direction_change(3, 1);
+            break;
+        case TURN_180_DEGREE_COUNT:
+            direction_change(6, 1);
+            break;
+        
+    }
+    */
+    
+    uint16_t direction_counter = count;
+    direction_counter /= TURN_30_DEGREE_COUNT;
+    direction_change(1 * direction_counter, 1);
+    
+    count += 30;
     Motor_Stop();
     motorInterrupt1 = 0;
     motorInterrupt2 = 0;
@@ -644,12 +680,8 @@ void motor_right_turn(uint16_t count) {
 
 void direction_change(int direct, int isRound) {
     if((xSemaphoreTake(direction_semaphore, 10)) == pdTRUE) {
-        if(isRound) { 
-            direction = (direction + direct);
-            if(direction < 0)
-                direction = 3;
-            else
-                direction %= 4;
+        if ( isRound ) { 
+            direction = (direction + direct) % 12;
         } else {
             direction = direct;
         }
