@@ -156,7 +156,7 @@ void direction_change(int direct, int);
 #define STOP_DELAY                                                    3000000
 #define COUNT_DELAY                                                  8000000
 #define DELAY_BEFROE_TURN                                      25000000
-#define TASK_DELAY                                                     200
+#define TASK_DELAY                                                     80
 
 //#define __DEBUG_ON__
 
