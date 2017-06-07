@@ -151,14 +151,15 @@ void direction_change(int direct, int);
 
 #define TURN_180_DEGREE_COUNT                             1800
 #define TURN_90_DEGREE_COUNT                               900
-#define TURN_30_DEGREE_COUNT                               150
+#define TURN_60_DEGREE_COUNT                               600
+#define TURN_15_DEGREE_COUNT                               150
 
 #define STOP_DELAY                                                    3000000
 #define COUNT_DELAY                                                  8000000
 #define DELAY_BEFROE_TURN                                      25000000
-#define TASK_DELAY                                                     80
+#define TASK_DELAY                                                     20
 
-//#define __DEBUG_ON__
+#define __DEBUG_ON__
 
 volatile uint32_t                us_front_distance;
 volatile uint32_t                us_left_distance;
@@ -491,38 +492,38 @@ void IR_Check_Detection(void *params) {
 void IR_Left_Detected(void *params) {
     while(1) {
         vTaskSuspend(ir_left_handle);
-        motor_right_turn(TURN_30_DEGREE_COUNT);
+        motor_right_turn(TURN_15_DEGREE_COUNT);
        
-        /*angle_error += 30;
-        if(angle_error >= 90) {
+        angle_error += 15;
+        if(angle_error >= 60) {
             for(int i=0; i<DELAY_BEFROE_TURN; i++);
             Motor_Stop();
             Motor_Left();
             printf("\r\n IR_Left_Detected: Angle Error Detected!! Turn Left");
-            motor_left_turn(TURN_90_DEGREE_COUNT);
+            motor_left_turn(TURN_60_DEGREE_COUNT);
             Motor_Stop();
             Motor_Forward();
-            angle_error -= 90;
-        }*/
+            angle_error -= 60;
+        }
     }
 }
 
 void IR_Right_Detected(void *params) {
     while(1) {
         vTaskSuspend(ir_right_handle);
-        motor_left_turn(TURN_30_DEGREE_COUNT);
+        motor_left_turn(TURN_15_DEGREE_COUNT);
         
-        /*angle_error -= 30;
-        if(angle_error <= -90) {
+        angle_error -= 15;
+        if(angle_error <= -60) {
             for(int i=0; i<DELAY_BEFROE_TURN; i++);
             Motor_Stop();
             Motor_Right();
             printf("\r\n IR_Right_Detected: Angle Error Detected!! Turn Right");
-            motor_right_turn(TURN_90_DEGREE_COUNT);
+            motor_right_turn(TURN_60_DEGREE_COUNT);
             Motor_Stop();
             Motor_Forward();
-            angle_error += 90;
-        }*/
+            angle_error += 60;
+        }
     }
 }
 
@@ -596,13 +597,24 @@ void US_Forward_Detected(void *params) {
             direction_change(LEFT, 0);
             motor_left_turn(TURN_180_DEGREE_COUNT);
         }
-        else {     
-            if(us_left_distance < us_right_distance) {
-                motor_right_turn(TURN_90_DEGREE_COUNT+30);
-                direction_change(1, 1);
+        else {            
+            if(us_left_distance >= US_LEFT_RIGHT_MOVABLE_LIMIT &&
+                us_right_distance >= US_LEFT_RIGHT_MOVABLE_LIMIT) {
+                 if (uhADCxLeft < uhADCxRight) {
+                    motor_left_turn(TURN_90_DEGREE_COUNT);
+                     direction_change(-1, 1);
+                 } else {
+                    motor_right_turn(TURN_90_DEGREE_COUNT);
+                    direction_change(1, 1);
+                 }
             } else {
-                motor_left_turn(TURN_90_DEGREE_COUNT);
-                direction_change(-1, 1);
+                 if(us_left_distance < us_right_distance) {  
+                    motor_right_turn(TURN_90_DEGREE_COUNT);
+                    direction_change(1, 1);
+                } else {
+                    motor_left_turn(TURN_90_DEGREE_COUNT);
+                    direction_change(-1, 1);
+                }
             }
             printf("\r\n Forward_Detected: turn in random direction");
         }
