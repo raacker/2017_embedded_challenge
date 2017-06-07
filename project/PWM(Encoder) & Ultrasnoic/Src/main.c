@@ -151,12 +151,12 @@ void direction_change(int direct, int);
 
 #define TURN_180_DEGREE_COUNT                             1800
 #define TURN_90_DEGREE_COUNT                               900
-#define TURN_60_DEGREE_COUNT                               600
+#define TURN_60_DEGREE_COUNT                               630
 #define TURN_15_DEGREE_COUNT                               150
 
 #define STOP_DELAY                                                    3000000
-#define COUNT_DELAY                                                  8000000
-#define DELAY_BEFROE_TURN                                      25000000
+#define COUNT_DELAY                                                  4000000
+#define DELAY_BEFROE_TURN                                      32000000                                              
 #define TASK_DELAY                                                     20
 
 #define __DEBUG_ON__
@@ -560,8 +560,8 @@ void US_Right_Detected(void *params) {
     while(1) {
         vTaskSuspend(us_right_handle);
         for(int i=0; i<DELAY_BEFROE_TURN; i++);
-        direction_change(FORWARD, 0);
         motor_right_turn(TURN_90_DEGREE_COUNT);
+        direction_change(FORWARD, 0);
     }
 }
 
@@ -569,8 +569,8 @@ void US_Left_Detected(void *params) {
     while(1) {
         vTaskSuspend(us_left_handle);
         for(int i=0; i<DELAY_BEFROE_TURN; i++);
-        direction_change(FORWARD, 0);
         motor_left_turn(TURN_90_DEGREE_COUNT);
+        direction_change(FORWARD, 0);
     }
 }
 
@@ -579,23 +579,23 @@ void US_Forward_Detected(void *params) {
         vTaskSuspend(us_forward_handle);
         if(direction == LEFT && us_right_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
             printf("\r\n Forward_Detected: Obstacle Detected on front Turn Right");
-            direction_change(FORWARD, 0);
             motor_right_turn(TURN_90_DEGREE_COUNT);
+            direction_change(FORWARD, 0);
         }
         else if(direction == LEFT && us_right_distance <= US_LEFT_RIGHT_MOVABLE_LIMIT) {
             printf("\r\n Forward_Detected: Obstacle Detected on front Turn Right Backward");
-            direction_change(RIGHT, 0);
             motor_right_turn(TURN_180_DEGREE_COUNT);
+            direction_change(RIGHT, 0);
         }
         else if(direction == RIGHT && us_left_distance > US_LEFT_RIGHT_MOVABLE_LIMIT) {
             printf("\r\n Forward_Detected: Obstacle Detected on front Turn Left");
-            direction_change(FORWARD, 0);
             motor_left_turn(TURN_90_DEGREE_COUNT);
+            direction_change(FORWARD, 0);
         }
         else if(direction == RIGHT && us_left_distance <= US_LEFT_RIGHT_MOVABLE_LIMIT) {
             printf("\r\n Forward_Detected: Obstacle Detected on front Turn Left Backward");
-            direction_change(LEFT, 0);
             motor_left_turn(TURN_180_DEGREE_COUNT);
+            direction_change(LEFT, 0);
         }
         else {            
             if(us_left_distance >= US_LEFT_RIGHT_MOVABLE_LIMIT &&
