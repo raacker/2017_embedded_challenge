@@ -155,7 +155,7 @@ void direction_change(int direct, int);
 #define TURN_15_DEGREE_COUNT                               150
 
 #define STOP_DELAY                                                    3000000
-#define COUNT_DELAY                                                  4000000
+#define COUNT_DELAY                                                  5000000
 #define DELAY_BEFROE_TURN                                      32000000                                              
 #define TASK_DELAY                                                     20
 
@@ -650,17 +650,14 @@ void motor_right_turn(uint16_t count) {
 }
 
 void direction_change(int direct, int isRound) {
-    if((xSemaphoreTake(direction_semaphore, 10)) == pdTRUE) {
-        if(isRound) { 
-            direction = (direction + direct);
-            if(direction < 0)
-                direction = 3;
-            else
-                direction %= 4;
-        } else {
-            direction = direct;
-        }
-        xSemaphoreGive(direction_semaphore);
+    if(isRound) { 
+        direction = (direction + direct);
+        if(direction < 0)
+            direction = 3;
+        else
+            direction %= 4;
+    } else {
+        direction = direct;
     }
 }
 
